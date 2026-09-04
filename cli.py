@@ -1,8 +1,8 @@
 """
-convo-agent-platform CLI
+nexus-agent-runtime CLI
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-Interactive CLI tool to demonstrate and operate the Convo Shared Agent Runtime.
+Interactive CLI tool to demonstrate and operate the Nexus Shared Agent Runtime.
 """
 
 from __future__ import annotations
@@ -13,20 +13,20 @@ import json
 import sys
 import httpx
 
-from convo_runtime.api.app import create_app
-from convo_sdk.client import ConvoClient
+from nexus_runtime.api.app import create_app
+from nexus_sdk.client import NexusClient
 
 
-def get_client() -> ConvoClient:
+def get_client() -> NexusClient:
     app = create_app()
     transport = httpx.ASGITransport(app=app)
-    return ConvoClient(base_url="http://testserver", tenant_id="cli-operator", transport=transport)
+    return NexusClient(base_url="http://testserver", tenant_id="cli-operator", transport=transport)
 
 
 async def cmd_tools():
     async with get_client() as client:
         tools = await client.tools.list()
-        print("\n=== Registered Convo & MCP Tools ===")
+        print("\n=== Registered Nexus & MCP Tools ===")
         print(f"{'NAME':<25} {'VERSION':<10} {'APPROVAL?':<12} {'TAGS'}")
         print("-" * 65)
         for t in tools:
@@ -61,12 +61,12 @@ async def cmd_stream(intent: str):
 async def cmd_telemetry():
     async with get_client() as client:
         metrics = await client.telemetry.get_metrics()
-        print("\n=== Convo Platform Operational Telemetry ===")
+        print("\n=== Nexus Platform Operational Telemetry ===")
         print(json.dumps(metrics, indent=2))
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Convo Agent Platform CLI")
+    parser = argparse.ArgumentParser(description="Nexus Agent Platform CLI")
     subparsers = parser.add_subparsers(dest="command")
 
     # tools command

@@ -7,7 +7,7 @@ and operational telemetry collectors.
 """
 
 import pytest
-from convo_runtime.telemetry.otel import (
+from nexus_runtime.telemetry.otel import (
     trace_workflow_span,
     trace_tool_span,
     inject_trace_context,
@@ -15,7 +15,7 @@ from convo_runtime.telemetry.otel import (
     get_recorded_spans,
     clear_recorded_spans,
 )
-from convo_runtime.telemetry.metrics import RuntimeMetricsCollector
+from nexus_runtime.telemetry.metrics import RuntimeMetricsCollector
 
 
 def test_opentelemetry_genai_spans():
@@ -33,9 +33,9 @@ def test_opentelemetry_genai_spans():
     assert tool_span.attributes["tool.call_id"] == "call_1"
 
     workflow_span = next(s for s in spans if s.name == "test_workflow")
-    assert workflow_span.attributes["gen_ai.system"] == "convo_agent_runtime"
-    assert workflow_span.attributes["convo.run_id"] == "run_otel_99"
-    assert workflow_span.attributes["convo.tenant_id"] == "tenant-sre"
+    assert workflow_span.attributes["gen_ai.system"] == "nexus_agent_runtime"
+    assert workflow_span.attributes["nexus.run_id"] == "run_otel_99"
+    assert workflow_span.attributes["nexus.tenant_id"] == "tenant-sre"
 
 
 def test_trace_context_propagation():

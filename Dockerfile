@@ -25,5 +25,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/healthz || exit 1
 
-# Start the Convo shared agent runtime
-CMD ["uvicorn", "convo_runtime.api.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+# Start the Nexus shared agent runtime
+CMD ["uvicorn", "nexus_runtime.api.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]

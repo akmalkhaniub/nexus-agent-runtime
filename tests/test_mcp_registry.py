@@ -7,10 +7,10 @@ schema validation, and HITL security policies.
 """
 
 import pytest
-from convo_registry.contracts import ToolDefinition, ToolInputSchema, ToolCallRequest
-from convo_registry.registry import ToolRegistry
-from convo_registry.policy import ToolPolicyEngine
-from convo_registry.mcp_adapter import MCPProtocolAdapter
+from nexus_registry.contracts import ToolDefinition, ToolInputSchema, ToolCallRequest
+from nexus_registry.registry import ToolRegistry
+from nexus_registry.policy import ToolPolicyEngine
+from nexus_registry.mcp_adapter import MCPProtocolAdapter
 
 
 @pytest.mark.asyncio

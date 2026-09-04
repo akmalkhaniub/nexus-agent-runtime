@@ -7,14 +7,14 @@ Pytest configuration, async event loop fixtures, and runtime component mocks.
 
 import pytest
 import httpx
-from convo_registry.registry import ToolRegistry
-from convo_registry.builtin_tools import register_builtin_tools
-from convo_runtime.core.checkpointer import InMemoryCheckpointer
-from convo_runtime.persistence.graph_store import GraphStore
-from convo_runtime.persistence.vector_store import VectorMemoryStore
-from convo_runtime.reliability.idempotency import IdempotencyManager
-from convo_runtime.api.app import create_app
-from convo_sdk.client import ConvoClient
+from nexus_registry.registry import ToolRegistry
+from nexus_registry.builtin_tools import register_builtin_tools
+from nexus_runtime.core.checkpointer import InMemoryCheckpointer
+from nexus_runtime.persistence.graph_store import GraphStore
+from nexus_runtime.persistence.vector_store import VectorMemoryStore
+from nexus_runtime.reliability.idempotency import IdempotencyManager
+from nexus_runtime.api.app import create_app
+from nexus_sdk.client import NexusClient
 
 
 @pytest.fixture
@@ -58,5 +58,5 @@ def app(tool_registry, checkpointer, graph_store, vector_store, idempotency_mgr)
 @pytest.fixture
 async def client(app):
     transport = httpx.ASGITransport(app=app)
-    async with ConvoClient(base_url="http://testserver", tenant_id="test-tenant", transport=transport) as c:
+    async with NexusClient(base_url="http://testserver", tenant_id="test-tenant", transport=transport) as c:
         yield c

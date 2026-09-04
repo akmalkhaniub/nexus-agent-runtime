@@ -9,7 +9,7 @@ Demonstrates transactional state updates, policy evaluation, and episodic memory
 from __future__ import annotations
 
 from typing import Any, Dict
-from convo_sdk import ConvoClient, agent
+from nexus_sdk import NexusClient, agent
 
 
 @agent(
@@ -22,7 +22,7 @@ class BillingOpsAgent:
     Billing Operations Agent instantiated by internal Finance/Billing engineering pods.
     """
 
-    def __init__(self, client: ConvoClient) -> None:
+    def __init__(self, client: NexusClient) -> None:
         self.client = client
 
     async def resolve_dispute(self, account_id: str, disputed_amount: float, reason: str) -> Dict[str, Any]:

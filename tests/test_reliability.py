@@ -8,10 +8,10 @@ idempotency, and timeouts.
 
 import asyncio
 import pytest
-from convo_runtime.reliability.circuit_breaker import CircuitBreaker, CircuitBreakerOpenError, CircuitState
-from convo_runtime.reliability.retries import retry_async
-from convo_runtime.reliability.idempotency import IdempotencyManager, IdempotencyConflictError
-from convo_runtime.reliability.timeouts import run_with_timeout, OperationTimeoutError
+from nexus_runtime.reliability.circuit_breaker import CircuitBreaker, CircuitBreakerOpenError, CircuitState
+from nexus_runtime.reliability.retries import retry_async
+from nexus_runtime.reliability.idempotency import IdempotencyManager, IdempotencyConflictError
+from nexus_runtime.reliability.timeouts import run_with_timeout, OperationTimeoutError
 
 
 @pytest.mark.asyncio

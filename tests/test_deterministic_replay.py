@@ -6,10 +6,10 @@ Tests for deterministic replay engine and time-travel state recovery.
 """
 
 import pytest
-from convo_runtime.core.graph import StateGraph, END
-from convo_runtime.core.state import AgentState
-from convo_runtime.core.checkpointer import InMemoryCheckpointer
-from convo_runtime.core.replay import DeterministicReplayEngine
+from nexus_runtime.core.graph import StateGraph, END
+from nexus_runtime.core.state import AgentState
+from nexus_runtime.core.checkpointer import InMemoryCheckpointer
+from nexus_runtime.core.replay import DeterministicReplayEngine
 
 
 @pytest.mark.asyncio

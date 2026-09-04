@@ -7,9 +7,9 @@ cyclical loops, and checkpointing.
 """
 
 import pytest
-from convo_runtime.core.graph import StateGraph, START, END, GraphEvent
-from convo_runtime.core.state import AgentState
-from convo_runtime.core.checkpointer import InMemoryCheckpointer
+from nexus_runtime.core.graph import StateGraph, START, END, GraphEvent
+from nexus_runtime.core.state import AgentState
+from nexus_runtime.core.checkpointer import InMemoryCheckpointer
 
 
 @pytest.mark.asyncio

@@ -1,13 +1,13 @@
-# CONVO Agent SDK (`convo-agent-sdk`) Developer Guide
+# NEXUS Agent SDK (`nexus-agent-sdk`) Developer Guide
 
-This guide explains how internal engineering pods at CONVO consume the shared runtime and SDK to build and operate domain-specific agents.
+This guide explains how internal engineering pods at NEXUS consume the shared runtime and SDK to build and operate domain-specific agents.
 
 ---
 
 ## 1. Installation
 
 ```bash
-pip install convo-agent-platform
+pip install nexus-agent-runtime
 ```
 
 ---
@@ -16,7 +16,7 @@ pip install convo-agent-platform
 
 ```python
 import asyncio
-from convo_sdk import ConvoClient, agent, tool
+from nexus_sdk import NexusClient, agent, tool
 
 # 1. Define a domain tool using the @tool decorator
 @tool(
@@ -34,7 +34,7 @@ async def get_customer_balance(account_id: str) -> dict:
     description="Assists customer support teams with billing and account status lookups."
 )
 class SupportOpsAgent:
-    def __init__(self, client: ConvoClient):
+    def __init__(self, client: NexusClient):
         self.client = client
 
     async def handle_inquiry(self, account_id: str):
@@ -57,7 +57,7 @@ class SupportOpsAgent:
 Consume live workflow events, node transitions, and state deltas in real-time:
 
 ```python
-async with ConvoClient(base_url="http://localhost:8000", tenant_id="pod-support") as client:
+async with NexusClient(base_url="http://localhost:8000", tenant_id="pod-support") as client:
     async for event in client.runs.stream(intent="Diagnose API latency"):
         print(f"[{event.event_type}] Node: {event.node_name}")
         if event.event_type == "node_finished":

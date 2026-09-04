@@ -3,7 +3,7 @@ examples.sre_incident_triage.agent
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Reference Domain Agent: Cloud SRE Incident Triage and Auto-Remediation.
-Demonstrates consuming the Convo SDK, handling Human-in-the-loop approvals,
+Demonstrates consuming the Nexus SDK, handling Human-in-the-loop approvals,
 and executing graph-based incident diagnosis.
 """
 
@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import asyncio
 from typing import Any, Dict
-from convo_sdk import ConvoClient, agent, tool
+from nexus_sdk import NexusClient, agent, tool
 
 
 @agent(
@@ -24,12 +24,12 @@ class SREIncidentTriageAgent:
     SRE Agent instantiated by internal Reliability Engineering pods.
     """
 
-    def __init__(self, client: ConvoClient) -> None:
+    def __init__(self, client: NexusClient) -> None:
         self.client = client
 
     async def triage_incident(self, alert_description: str, cluster: str, service: str) -> Dict[str, Any]:
         """
-        Executes end-to-end incident triage through the Convo shared runtime.
+        Executes end-to-end incident triage through the Nexus shared runtime.
         """
         print(f"[SRE Agent] Starting triage for alert: '{alert_description}' on {cluster}/{service}")
 

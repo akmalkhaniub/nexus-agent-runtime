@@ -6,8 +6,8 @@ Tests for dual-tier persistence engine: GraphStore and VectorMemoryStore.
 """
 
 import pytest
-from convo_runtime.persistence.graph_store import GraphStore
-from convo_runtime.persistence.vector_store import VectorMemoryStore
+from nexus_runtime.persistence.graph_store import GraphStore
+from nexus_runtime.persistence.vector_store import VectorMemoryStore
 
 
 def test_graph_store_nodes_edges_and_subgraph():

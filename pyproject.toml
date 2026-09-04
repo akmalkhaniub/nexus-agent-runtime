@@ -3,13 +3,13 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "convo-agent-platform"
+name = "nexus-agent-runtime"
 version = "1.0.0"
 description = "Enterprise Shared Runtime, Graph Orchestration, MCP Tool Registry & SDK for Agentic Applications"
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [
-    { name = "Convo Platform Engineering", email = "platform@convo.internal" }
+    { name = "Nexus Platform Engineering", email = "platform@nexus.internal" }
 ]
 classifiers = [
     "Programming Language :: Python :: 3",

@@ -2,19 +2,19 @@
 tests.test_sdk_integration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-End-to-end integration tests using ConvoClient against the full FastAPI runtime.
+End-to-end integration tests using NexusClient against the full FastAPI runtime.
 Validates SDK ergonomics, streaming SSE, tool contracts, and reference domain agents.
 """
 
 import pytest
-from convo_sdk.client import ConvoClient
-from convo_sdk.decorators import tool
+from nexus_sdk.client import NexusClient
+from nexus_sdk.decorators import tool
 from examples.sre_incident_triage.agent import SREIncidentTriageAgent
 from examples.billing_ops_agent.agent import BillingOpsAgent
 
 
 @pytest.mark.asyncio
-async def test_sdk_tool_registration_and_execution(client: ConvoClient):
+async def test_sdk_tool_registration_and_execution(client: NexusClient):
     # Register custom tool via @tool decorator
     @tool(name="fetch_user_profile", description="Fetches profile by user ID", tags=["users"])
     async def fetch_user_profile(user_id: str) -> dict:
@@ -30,7 +30,7 @@ async def test_sdk_tool_registration_and_execution(client: ConvoClient):
 
 
 @pytest.mark.asyncio
-async def test_sdk_run_execution_and_checkpoints(client: ConvoClient):
+async def test_sdk_run_execution_and_checkpoints(client: NexusClient):
     run = await client.runs.create(
         intent="Triage CPU spike alert on prod-cluster",
         context={"cluster": "prod-us-east", "service": "payment-api"},
@@ -45,7 +45,7 @@ async def test_sdk_run_execution_and_checkpoints(client: ConvoClient):
 
 
 @pytest.mark.asyncio
-async def test_sdk_streaming_events(client: ConvoClient):
+async def test_sdk_streaming_events(client: NexusClient):
     # 1. Test completed workflow stream
     events = []
     async for event in client.runs.stream(
@@ -73,7 +73,7 @@ async def test_sdk_streaming_events(client: ConvoClient):
 
 
 @pytest.mark.asyncio
-async def test_sdk_deterministic_replay(client: ConvoClient):
+async def test_sdk_deterministic_replay(client: NexusClient):
     # 1. First run
     run = await client.runs.create(
         intent="Triage cluster incident",
@@ -93,7 +93,7 @@ async def test_sdk_deterministic_replay(client: ConvoClient):
 
 
 @pytest.mark.asyncio
-async def test_sre_reference_agent_end_to_end(client: ConvoClient):
+async def test_sre_reference_agent_end_to_end(client: NexusClient):
     agent = SREIncidentTriageAgent(client)
     res = await agent.triage_incident(
         alert_description="High CPU usage and container restart loop",
@@ -104,7 +104,7 @@ async def test_sre_reference_agent_end_to_end(client: ConvoClient):
 
 
 @pytest.mark.asyncio
-async def test_billing_reference_agent_end_to_end(client: ConvoClient):
+async def test_billing_reference_agent_end_to_end(client: NexusClient):
     agent = BillingOpsAgent(client)
     res = await agent.resolve_dispute(
         account_id="ACC-TEST-9001",

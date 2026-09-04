@@ -13,24 +13,24 @@ import httpx
 # Ensure project root is in sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
-from convo_runtime.api.app import create_app
-from convo_sdk.client import ConvoClient
+from nexus_runtime.api.app import create_app
+from nexus_sdk.client import NexusClient
 from examples.sre_incident_triage.agent import SREIncidentTriageAgent
 
 
 async def main():
     print("=" * 60)
-    print("  CONVO SRE INCIDENT TRIAGE DOMAIN AGENT DEMO")
+    print("  NEXUS SRE INCIDENT TRIAGE DOMAIN AGENT DEMO")
     print("=" * 60)
 
     # Boot in-memory runtime app
     app = create_app()
     transport = httpx.ASGITransport(app=app)
 
-    async with ConvoClient(base_url="http://testserver", tenant_id="pod-sre-east", transport=transport) as client:
+    async with NexusClient(base_url="http://testserver", tenant_id="pod-sre-east", transport=transport) as client:
         # Check health and registered tools
         tools = await client.tools.list()
-        print(f"Connected to Convo Runtime. Available tools: {[t.get('name') for t in tools]}")
+        print(f"Connected to Nexus Runtime. Available tools: {[t.get('name') for t in tools]}")
 
         # Instantiate reference agent
         sre_agent = SREIncidentTriageAgent(client)

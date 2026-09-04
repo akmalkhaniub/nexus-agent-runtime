@@ -1,12 +1,12 @@
 # Model Context Protocol (MCP) Integration Specification
 
-The CONVO Agent Platform natively supports the **Model Context Protocol (MCP)** specification (JSON-RPC 2.0).
+The NEXUS Agent Platform natively supports the **Model Context Protocol (MCP)** specification (JSON-RPC 2.0).
 
 ---
 
-## 1. Exposing Convo Tools to External MCP Clients
+## 1. Exposing Nexus Tools to External MCP Clients
 
-External LLM agents, Claude Desktop, or Cursor can interact with the Convo platform using the standard endpoint:
+External LLM agents, Claude Desktop, or Cursor can interact with the Nexus platform using the standard endpoint:
 
 `POST /api/v1/tools/mcp/rpc`
 
@@ -86,4 +86,4 @@ External LLM agents, Claude Desktop, or Cursor can interact with the Convo platf
 
 ## 2. Ingesting External MCP Tool Servers
 
-The platform also provides `ExternalMCPClientAdapter` in `convo_registry.mcp_adapter` allowing the shared runtime to connect to external MCP servers (via stdio or HTTP/SSE), discover their tools, and dynamically mount them into the Convo registry.
+The platform also provides `ExternalMCPClientAdapter` in `nexus_registry.mcp_adapter` allowing the shared runtime to connect to external MCP servers (via stdio or HTTP/SSE), discover their tools, and dynamically mount them into the Nexus registry.
