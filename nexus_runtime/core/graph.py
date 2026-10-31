@@ -198,6 +198,8 @@ class CompiledGraph:
             start_time = time.time()
             node_fn = self.nodes[current_node]
 
+            # Pass an isolated copy of state so a failing node cannot corrupt in-memory state
+            state = state.model_copy(deep=True)
             try:
                 result = await self._execute_callable(node_fn, state)
             except Exception as exc:

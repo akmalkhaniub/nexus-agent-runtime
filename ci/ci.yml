@@ -1,0 +1,21 @@
+name: NEXUS Agent Runtime CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  pytest:
+    name: Graph Orchestrator, Replay & MCP Registry Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install -e ".[dev]" || pip install fastapi pydantic pytest pytest-asyncio httpx uvicorn
+      - name: Run Pytest Suite
+        run: pytest -v
