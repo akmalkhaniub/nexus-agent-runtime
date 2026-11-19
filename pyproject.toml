@@ -40,3 +40,7 @@ dev = [
 asyncio_mode = "auto"
 testpaths = ["tests"]
 python_files = "test_*.py"
+pythonpath = ["."]
+
+[tool.setuptools.packages.find]
+include = ["nexus_runtime*", "nexus_registry*", "nexus_sdk*"]

@@ -18,6 +18,7 @@ from nexus_registry.contracts import (
     MCPRequest,
     MCPResponse,
 )
+from nexus_runtime.telemetry.otel import inject_trace_context
 
 
 class MCPProtocolAdapter:
@@ -83,18 +84,39 @@ class ExternalMCPClientAdapter:
         self.server_name = server_name
         self._transport = transport_callable
 
+    @staticmethod
+    def _build_meta(meta: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        merged: Dict[str, Any] = dict(meta) if meta else {}
+        trace_headers: Dict[str, str] = {}
+        inject_trace_context(trace_headers)
+        for key in ("traceparent", "tracestate"):
+            if key in trace_headers and key not in merged:
+                merged[key] = trace_headers[key]
+        return merged
+
     async def list_tools(self) -> List[ToolDefinition]:
         """Discovers tools exposed by the external MCP server."""
-        req = MCPRequest(method="tools/list")
+        meta = self._build_meta()
+        params: Dict[str, Any] = {"_meta": meta} if meta else {}
+        req = MCPRequest(method="tools/list", params=params)
         res_data = await self._transport(req.model_dump())
         tools_raw = res_data.get("result", {}).get("tools", [])
         return [ToolDefinition.from_mcp_format(t) for t in tools_raw]
 
-    async def call_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Any:
-        """Calls a tool on the external MCP server."""
+    async def call_tool(
+        self,
+        tool_name: str,
+        arguments: Dict[str, Any],
+        meta: Optional[Dict[str, Any]] = None,
+    ) -> Any:
+        """Calls a tool on the external MCP server with W3C Trace Context in params._meta."""
+        merged_meta = self._build_meta(meta)
+        params: Dict[str, Any] = {"name": tool_name, "arguments": arguments}
+        if merged_meta:
+            params["_meta"] = merged_meta
         req = MCPRequest(
             method="tools/call",
-            params={"name": tool_name, "arguments": arguments},
+            params=params,
         )
         res_data = await self._transport(req.model_dump())
         if "error" in res_data and res_data["error"]:
