@@ -21,12 +21,21 @@ class ToolInputSchema(BaseModel):
     required: List[str] = Field(default_factory=list)
 
 
+class ToolAnnotations(BaseModel):
+    """MCP ToolAnnotations behavioral hints (untrusted for external servers until verified by policy)."""
+    readOnlyHint: bool = False
+    destructiveHint: bool = False
+    idempotentHint: bool = False
+    openWorldHint: bool = False
+
+
 class ToolDefinition(BaseModel):
     """Specification of an agent-executable tool."""
     name: str
     description: str
     version: str = "1.0.0"
     input_schema: ToolInputSchema = Field(default_factory=ToolInputSchema)
+    annotations: Optional[ToolAnnotations] = None
     requires_approval: bool = False
     timeout_seconds: float = 30.0
     tags: List[str] = Field(default_factory=list)
@@ -34,20 +43,30 @@ class ToolDefinition(BaseModel):
 
     def to_mcp_format(self) -> Dict[str, Any]:
         """Converts internal tool definition into official Model Context Protocol (MCP) tool schema."""
-        return {
+        payload: Dict[str, Any] = {
             "name": self.name,
             "description": self.description,
             "inputSchema": self.input_schema.model_dump(),
         }
+        if self.annotations is not None:
+            payload["annotations"] = self.annotations.model_dump()
+        return payload
 
     @classmethod
     def from_mcp_format(cls, data: Dict[str, Any], version: str = "1.0.0") -> ToolDefinition:
-        """Constructs a ToolDefinition from an external MCP tool descriptor."""
+        """Constructs a ToolDefinition from an external MCP tool descriptor, treating remote hints as untrusted."""
+        raw_annotations = data.get("annotations")
+        annotations = ToolAnnotations(**raw_annotations) if isinstance(raw_annotations, dict) else None
+        metadata: Dict[str, Any] = {}
+        if raw_annotations is not None:
+            metadata["untrusted_annotations"] = raw_annotations
         return cls(
             name=data["name"],
             description=data.get("description", ""),
             version=version,
             input_schema=ToolInputSchema(**data.get("inputSchema", {})),
+            annotations=annotations,
+            metadata=metadata,
         )
 
 

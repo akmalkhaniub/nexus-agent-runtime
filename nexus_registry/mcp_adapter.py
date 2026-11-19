@@ -44,11 +44,39 @@ class MCPProtocolAdapter:
         request_id: str,
         result: ToolCallResult,
     ) -> MCPResponse:
-        """Formats tool result into standard MCP tools/call content envelope."""
+        """Formats tool result into standard MCP tools/call content, structuredContent, and elicitation envelopes."""
         if result.status == "error":
             return MCPResponse(
                 id=request_id,
                 error={"code": -32000, "message": result.error or "Tool execution failed"},
+            )
+
+        if result.status == "approval_required":
+            elicit_payload = {
+                "status": "input_required",
+                "call_id": result.call_id,
+                "tool_name": result.tool_name,
+                "elicitation": {
+                    "mode": "form",
+                    "message": result.error or f"Human approval required before running '{result.tool_name}'.",
+                    "requestedSchema": {
+                        "type": "object",
+                        "properties": {
+                            "approved": {"type": "boolean", "description": "Approve tool execution"},
+                            "reason": {"type": "string", "maxLength": 200},
+                        },
+                        "required": ["approved"],
+                        "additionalProperties": False,
+                    },
+                },
+            }
+            return MCPResponse(
+                id=request_id,
+                result={
+                    "content": [{"type": "text", "text": json.dumps(elicit_payload)}],
+                    "structuredContent": elicit_payload,
+                    "isError": False,
+                },
             )
 
         content_text = (
@@ -56,17 +84,20 @@ class MCPProtocolAdapter:
             if isinstance(result.output, (dict, list))
             else str(result.output)
         )
+        envelope: Dict[str, Any] = {
+            "content": [
+                {
+                    "type": "text",
+                    "text": content_text,
+                }
+            ],
+            "isError": False,
+        }
+        if isinstance(result.output, dict):
+            envelope["structuredContent"] = result.output
         return MCPResponse(
             id=request_id,
-            result={
-                "content": [
-                    {
-                        "type": "text",
-                        "text": content_text,
-                    }
-                ],
-                "isError": False,
-            },
+            result=envelope,
         )
 
 

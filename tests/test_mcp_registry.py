@@ -7,7 +7,7 @@ schema validation, and HITL security policies.
 """
 
 import pytest
-from nexus_registry.contracts import ToolDefinition, ToolInputSchema, ToolCallRequest
+from nexus_registry.contracts import ToolAnnotations, ToolCallRequest, ToolCallResult, ToolDefinition, ToolInputSchema
 from nexus_registry.registry import ToolRegistry
 from nexus_registry.policy import ToolPolicyEngine
 from nexus_registry.mcp_adapter import MCPProtocolAdapter
@@ -136,3 +136,31 @@ def test_mcp_format_conversion():
     mcp_resp = MCPProtocolAdapter.format_mcp_tools_list_response("req_1", [tool_def])
     assert mcp_resp.jsonrpc == "2.0"
     assert len(mcp_resp.result["tools"]) == 1
+
+
+def test_mcp_annotations_structured_content_and_elicitation():
+    annotated = ToolDefinition(
+        name="cluster_status",
+        description="Read cluster status",
+        annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True),
+    )
+    exported = annotated.to_mcp_format()
+    assert exported["annotations"]["readOnlyHint"] is True
+
+    imported = ToolDefinition.from_mcp_format(exported)
+    assert imported.annotations is not None
+    assert imported.annotations.readOnlyHint is True
+    assert "untrusted_annotations" in imported.metadata
+
+    ok_resp = MCPProtocolAdapter.format_mcp_tool_call_response(
+        "req_2",
+        ToolCallResult(call_id="c1", tool_name="cluster_status", status="success", output={"healthy": True}),
+    )
+    assert ok_resp.result["structuredContent"] == {"healthy": True}
+
+    elicit_resp = MCPProtocolAdapter.format_mcp_tool_call_response(
+        "req_3",
+        ToolCallResult(call_id="c2", tool_name="delete_db", status="approval_required", error="Confirm deletion"),
+    )
+    assert elicit_resp.result["structuredContent"]["status"] == "input_required"
+    assert elicit_resp.result["structuredContent"]["elicitation"]["mode"] == "form"
