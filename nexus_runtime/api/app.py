@@ -16,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from nexus_registry.registry import ToolRegistry
 from nexus_registry.builtin_tools import register_builtin_tools
 from nexus_runtime.core.checkpointer import BaseCheckpointer, InMemoryCheckpointer
+from nexus_runtime.core.state_handles import StateHandleManager
 from nexus_runtime.persistence.graph_store import GraphStore
 from nexus_runtime.persistence.vector_store import VectorMemoryStore
 from nexus_runtime.reliability.idempotency import IdempotencyManager
@@ -26,6 +27,7 @@ from nexus_runtime.api.routes_tools import router as tools_router
 from nexus_runtime.api.routes_replay import router as replay_router
 from nexus_runtime.api.routes_memory import router as memory_router
 from nexus_runtime.api.routes_telemetry import router as telemetry_router
+from nexus_runtime.api.routes_mcp_tasks import router as mcp_tasks_router
 
 
 def create_app(
@@ -34,6 +36,7 @@ def create_app(
     graph_store: Optional[GraphStore] = None,
     vector_store: Optional[VectorMemoryStore] = None,
     idempotency_manager: Optional[IdempotencyManager] = None,
+    state_handle_manager: Optional[StateHandleManager] = None,
 ) -> FastAPI:
     """
     Creates and configures the FastAPI application instance.
@@ -47,6 +50,7 @@ def create_app(
     graph_store = graph_store or GraphStore()
     vector_store = vector_store or VectorMemoryStore()
     idempotency_manager = idempotency_manager or IdempotencyManager()
+    state_handle_manager = state_handle_manager or StateHandleManager()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -67,6 +71,7 @@ def create_app(
     app.state.graph_store = graph_store
     app.state.vector_store = vector_store
     app.state.idempotency_mgr = idempotency_manager
+    app.state.state_handle_manager = state_handle_manager
 
     # Middleware stack
     app.add_middleware(
@@ -85,6 +90,7 @@ def create_app(
     app.include_router(replay_router)
     app.include_router(memory_router)
     app.include_router(telemetry_router)
+    app.include_router(mcp_tasks_router)
 
     @app.get("/healthz", tags=["System"])
     async def health_check():
