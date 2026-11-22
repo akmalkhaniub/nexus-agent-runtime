@@ -66,7 +66,8 @@ class StateHandleManager:
         ttl_seconds: Optional[int] = None,
     ) -> str:
         now = int(time.time())
-        exp = now + (ttl_seconds or self.default_ttl_seconds)
+        ttl = self.default_ttl_seconds if ttl_seconds is None else ttl_seconds
+        exp = now + ttl
         claims: Dict[str, Any] = {
             "rid": run_id,
             "tid": tenant_id,
@@ -102,8 +103,19 @@ class StateHandleManager:
         if not hmac.compare_digest(provided_sig, expected_sig):
             raise StateHandleAuthError("Opaque state handle HMAC signature mismatch.")
 
+        if not isinstance(claims, dict):
+            raise StateHandleAuthError("Opaque state handle claims must be a JSON object.")
+
         current = time.time() if now is None else now
-        if current >= float(claims.get("exp", 0)):
+        try:
+            exp_val = float(claims.get("exp", 0))
+            step_idx = int(claims["idx"])
+            iat_val = int(claims["iat"])
+            exp_int = int(claims["exp"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise StateHandleAuthError(f"Malformed opaque state handle claims: {exc}") from exc
+
+        if current >= exp_val:
             raise StateHandleAuthError("Opaque state handle has expired.")
 
         if claims.get("tid") != expected_tenant_id or claims.get("sub") != expected_sub:
@@ -115,7 +127,7 @@ class StateHandleManager:
             run_id=str(claims["rid"]),
             tenant_id=str(claims["tid"]),
             sub=str(claims["sub"]),
-            step_index=int(claims["idx"]),
-            issued_at=int(claims["iat"]),
-            expires_at=int(claims["exp"]),
+            step_index=step_idx,
+            issued_at=iat_val,
+            expires_at=exp_int,
         )

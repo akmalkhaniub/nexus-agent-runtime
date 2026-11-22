@@ -206,7 +206,26 @@ async def mcp_tasks_rpc(req: MCPRequest, request: Request) -> Any:
             )
 
         action = str(params.get("action") or "accept").lower()
+        if action not in {"accept", "decline", "cancel"}:
+            return MCPResponse(
+                id=req.id,
+                error={"code": -32602, "message": f"Invalid elicitation action '{action}'. Expected accept, decline, or cancel."},
+            )
         elicit_input = params.get("input") if isinstance(params.get("input"), dict) else {}
+        if action == "accept" and task.status == "input_required" and isinstance(task.elicitation, dict):
+            req_schema = task.elicitation.get("requestedSchema")
+            if task.elicitation.get("mode") == "form" and isinstance(req_schema, dict):
+                for field in req_schema.get("required", []):
+                    if field not in elicit_input:
+                        return MCPResponse(
+                            id=req.id,
+                            error={"code": -32602, "message": f"Missing required elicitation input field '{field}'."},
+                        )
+                if "approved" in elicit_input and not isinstance(elicit_input["approved"], bool):
+                    return MCPResponse(
+                        id=req.id,
+                        error={"code": -32602, "message": "Elicitation input 'approved' must be a boolean."},
+                    )
         if action in {"decline", "cancel"} or elicit_input.get("approved") is False:
             task.status = "cancelled"
             task.message = "Task cancelled by human elicitation decision."

@@ -189,3 +189,37 @@ def test_mcp_completion_complete_and_resource_links() -> None:
     res_links = immediate.json()["result"]["task"]["result"]["resourceLinks"]
     assert res_links[0]["type"] == "resource_link"
     assert res_links[0]["uri"].startswith("nexus://runs/")
+
+
+def test_state_handle_ttl_zero_and_elicitation_validation(tmp_path: Path) -> None:
+    import pytest
+    from nexus_runtime.core.state_handles import StateHandleAuthError
+
+    handles = StateHandleManager(secret="ttl-test-secret")
+    zero_ttl = handles.mint(run_id="run-0", tenant_id="t1", sub="u1", ttl_seconds=0)
+    with pytest.raises(StateHandleAuthError, match="expired"):
+        handles.verify(zero_ttl, expected_tenant_id="t1", expected_sub="u1")
+
+    db_file = str(tmp_path / "nexus_validate.db")
+    app = create_app(checkpointer=SQLiteCheckpointer(db_path=db_file), state_handle_manager=handles)
+    client = TestClient(app)
+
+    started = client.post(
+        "/api/v1/mcp/tasks/rpc",
+        json={"jsonrpc": "2.0", "id": "v-1", "method": "tasks/start", "params": {"intent": "Deploy", "requires_approval": True}},
+    )
+    task_id = started.json()["result"]["task"]["taskId"]
+
+    bad_action = client.post(
+        "/api/v1/mcp/tasks/rpc",
+        json={"jsonrpc": "2.0", "id": "v-2", "method": "tasks/update", "params": {"taskId": task_id, "action": "typo_accept"}},
+    )
+    assert bad_action.status_code == 200
+    assert bad_action.json()["error"]["code"] == -32602
+
+    missing_approved = client.post(
+        "/api/v1/mcp/tasks/rpc",
+        json={"jsonrpc": "2.0", "id": "v-3", "method": "tasks/update", "params": {"taskId": task_id, "action": "accept", "input": {}}},
+    )
+    assert missing_approved.status_code == 200
+    assert missing_approved.json()["error"]["code"] == -32602
