@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 
 from nexus_runtime.core.state import AgentState, StateSnapshot
 from nexus_runtime.core.checkpointer import BaseCheckpointer, InMemoryCheckpointer
+from nexus_runtime.telemetry.otel import capture_trace_context, trace_workflow_span
 
 
 START = "__start__"
@@ -156,6 +157,8 @@ class CompiledGraph:
         start_node: Optional[str],
         start_step: int,
         max_iterations: int,
+        is_replay: bool = False,
+        replay_source_run_id: Optional[str] = None,
     ) -> AsyncIterator[GraphEvent]:
         step_index = start_step
         current_node = start_node
@@ -197,17 +200,26 @@ class CompiledGraph:
 
             # Pass an isolated copy of state so a failing node cannot corrupt preserved state
             node_state = state.fork()
-            try:
-                result = await self._execute_callable(node_fn, node_state)
-            except Exception as exc:
-                yield GraphEvent(
-                    event_type="workflow_failed",
-                    run_id=run_id,
-                    step_index=step_index,
-                    node_name=current_node,
-                    data={"error": str(exc), "error_type": type(exc).__name__},
-                )
-                raise
+            with trace_workflow_span(
+                f"node:{current_node}",
+                run_id=run_id,
+                operation_name="invoke_agent",
+                is_replay=is_replay,
+                replay_source_run_id=replay_source_run_id,
+                step_index=step_index,
+            ):
+                try:
+                    result = await self._execute_callable(node_fn, node_state)
+                except Exception as exc:
+                    yield GraphEvent(
+                        event_type="workflow_failed",
+                        run_id=run_id,
+                        step_index=step_index,
+                        node_name=current_node,
+                        data={"error": str(exc), "error_type": type(exc).__name__},
+                    )
+                    raise
+                trace_ctx = capture_trace_context()
 
             duration_ms = (time.time() - start_time) * 1000
 
@@ -225,10 +237,12 @@ class CompiledGraph:
             paused = bool(state.get("__pause_requested__", False))
             next_node = await self._resolve_next_node(current_node, state)
 
-            # Save state checkpoint after node completion (including durable resume target if paused)
+            # Save state checkpoint after node completion (including durable resume target & W3C trace context)
             snap_meta: Dict[str, Any] = {"paused": paused}
             if next_node is not None:
                 snap_meta["next_node"] = next_node
+            if trace_ctx:
+                snap_meta["trace_context"] = trace_ctx
             snap = state.snapshot(step_index=step_index, node_name=current_node, metadata=snap_meta)
             await self.checkpointer.save_checkpoint(run_id, snap)
 
@@ -281,6 +295,8 @@ class CompiledGraph:
         initial_state: Union[AgentState, Dict[str, Any]],
         run_id: Optional[str] = None,
         max_iterations: int = 50,
+        is_replay: bool = False,
+        replay_source_run_id: Optional[str] = None,
     ) -> AsyncIterator[GraphEvent]:
         """
         Executes the graph asynchronously and yields GraphEvents in real time.
@@ -288,26 +304,37 @@ class CompiledGraph:
         run_id = run_id or f"run_{uuid.uuid4().hex[:12]}"
         state = initial_state if isinstance(initial_state, AgentState) else AgentState(values=initial_state)
 
-        step_index = 0
-        initial_snap = state.snapshot(step_index=step_index, node_name=START)
-        await self.checkpointer.save_checkpoint(run_id, initial_snap)
-
-        yield GraphEvent(
-            event_type="workflow_started",
+        with trace_workflow_span(
+            f"workflow:{run_id}",
             run_id=run_id,
-            step_index=step_index,
-            node_name=START,
-            data={"entry_point": self.entry_point, "initial_state": state.to_dict()},
-        )
-
-        async for event in self._run_execution_loop(
-            state=state,
-            run_id=run_id,
-            start_node=self.entry_point,
-            start_step=step_index,
-            max_iterations=max_iterations,
+            operation_name="replay_workflow" if is_replay else "invoke_workflow",
+            is_replay=is_replay,
+            replay_source_run_id=replay_source_run_id,
         ):
-            yield event
+            step_index = 0
+            trace_ctx = capture_trace_context()
+            initial_meta = {"trace_context": trace_ctx} if trace_ctx else {}
+            initial_snap = state.snapshot(step_index=step_index, node_name=START, metadata=initial_meta)
+            await self.checkpointer.save_checkpoint(run_id, initial_snap)
+
+            yield GraphEvent(
+                event_type="workflow_started",
+                run_id=run_id,
+                step_index=step_index,
+                node_name=START,
+                data={"entry_point": self.entry_point, "initial_state": state.to_dict()},
+            )
+
+            async for event in self._run_execution_loop(
+                state=state,
+                run_id=run_id,
+                start_node=self.entry_point,
+                start_step=step_index,
+                max_iterations=max_iterations,
+                is_replay=is_replay,
+                replay_source_run_id=replay_source_run_id,
+            ):
+                yield event
 
     async def stream_resume(
         self,
@@ -318,7 +345,8 @@ class CompiledGraph:
     ) -> AsyncIterator[GraphEvent]:
         """
         Durably resume a paused workflow from a persisted checkpoint snapshot.
-        Clears interrupt flags, applies human-provided updates, and continues from next_node.
+        Clears interrupt flags, applies human-provided updates, restores W3C traceparent,
+        and continues from next_node.
         """
         snapshot = (
             await self.checkpointer.get_checkpoint(run_id, checkpoint_step)
@@ -338,22 +366,31 @@ class CompiledGraph:
         if next_node is None:
             next_node = await self._resolve_next_node(snapshot.node_name, state)
 
-        yield GraphEvent(
-            event_type="workflow_started",
-            run_id=run_id,
-            step_index=snapshot.step_index,
-            node_name=snapshot.node_name,
-            data={"resumed_from_step": snapshot.step_index, "next_node": next_node},
-        )
+        parent_traceparent = (snapshot.metadata.get("trace_context") or {}).get("traceparent")
 
-        async for event in self._run_execution_loop(
-            state=state,
+        with trace_workflow_span(
+            f"resume:{run_id}",
             run_id=run_id,
-            start_node=next_node,
-            start_step=snapshot.step_index,
-            max_iterations=max_iterations,
+            parent_traceparent=parent_traceparent,
+            operation_name="invoke_workflow",
+            step_index=snapshot.step_index,
         ):
-            yield event
+            yield GraphEvent(
+                event_type="workflow_started",
+                run_id=run_id,
+                step_index=snapshot.step_index,
+                node_name=snapshot.node_name,
+                data={"resumed_from_step": snapshot.step_index, "next_node": next_node},
+            )
+
+            async for event in self._run_execution_loop(
+                state=state,
+                run_id=run_id,
+                start_node=next_node,
+                start_step=snapshot.step_index,
+                max_iterations=max_iterations,
+            ):
+                yield event
 
     async def resume(
         self,
@@ -400,12 +437,20 @@ class CompiledGraph:
         initial_state: Union[AgentState, Dict[str, Any]],
         run_id: Optional[str] = None,
         max_iterations: int = 50,
+        is_replay: bool = False,
+        replay_source_run_id: Optional[str] = None,
     ) -> AgentState:
         """
         Executes the graph to completion and returns the final AgentState.
         """
         fallback = initial_state if isinstance(initial_state, AgentState) else AgentState(values=initial_state)
         return await self._collect_final_state(
-            self.stream(initial_state, run_id=run_id, max_iterations=max_iterations),
+            self.stream(
+                initial_state,
+                run_id=run_id,
+                max_iterations=max_iterations,
+                is_replay=is_replay,
+                replay_source_run_id=replay_source_run_id,
+            ),
             fallback_state=fallback,
         )

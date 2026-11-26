@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 from nexus_runtime.core.checkpointer import BaseCheckpointer
 from nexus_runtime.core.graph import CompiledGraph, GraphEvent
 from nexus_runtime.core.state import AgentState, StateSnapshot
+from nexus_runtime.telemetry.otel import trace_workflow_span
 
 
 class ReplayResult(BaseModel):
@@ -78,8 +79,23 @@ class DeterministicReplayEngine:
 
         sub_graph.set_entry_point(start_node)
         replayed_compiled = sub_graph.compile(checkpointer=self.checkpointer)
+        parent_traceparent = (snapshot.metadata.get("trace_context") or {}).get("traceparent")
 
-        final_state = await replayed_compiled.invoke(restored_state, run_id=replay_id)
+        with trace_workflow_span(
+            f"replay:{replay_id}",
+            run_id=replay_id,
+            parent_traceparent=parent_traceparent,
+            operation_name="replay_workflow",
+            is_replay=True,
+            replay_source_run_id=original_run_id,
+            replay_from_step=step_index,
+        ):
+            final_state = await replayed_compiled.invoke(
+                restored_state,
+                run_id=replay_id,
+                is_replay=True,
+                replay_source_run_id=original_run_id,
+            )
 
         # Count replay steps
         replay_snaps = await self.checkpointer.list_checkpoints(replay_id)
@@ -129,6 +145,21 @@ class DeterministicReplayEngine:
 
         sub_graph.set_entry_point(start_node)
         replayed_compiled = sub_graph.compile(checkpointer=self.checkpointer)
+        parent_traceparent = (snapshot.metadata.get("trace_context") or {}).get("traceparent")
 
-        async for event in replayed_compiled.stream(restored_state, run_id=replay_id):
-            yield event
+        with trace_workflow_span(
+            f"replay:{replay_id}",
+            run_id=replay_id,
+            parent_traceparent=parent_traceparent,
+            operation_name="replay_workflow",
+            is_replay=True,
+            replay_source_run_id=original_run_id,
+            replay_from_step=step_index,
+        ):
+            async for event in replayed_compiled.stream(
+                restored_state,
+                run_id=replay_id,
+                is_replay=True,
+                replay_source_run_id=original_run_id,
+            ):
+                yield event
